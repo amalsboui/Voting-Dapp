@@ -5,10 +5,27 @@ export const MetaMaskLogin = (props) => {
   
     const [account, setAccount] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
-  
+
+    const handleConnect = async () => {
+      try {
+        const  { address, provider, signer, contract } = await connectToMetamask();
+        console.log(address);
+        console.log(signer);
+        setAccount(address); //saving the connected wallet 
+        setIsConnected(true);
+
+        console.log("Connected wallet:", address);
+        console.log("Contract instance:", contract);
+
+      } catch (err) {
+        alert("Failed to connect wallet");
+      }
+    };
+
     function handleAccountsChanged(accounts) {
       if (accounts.length > 0 && account !== accounts[0]) {
         setAccount(accounts[0]);
+        console.log("hihi", account);
       } else {
         setIsConnected(false);
         setAccount(null);
@@ -24,15 +41,7 @@ export const MetaMaskLogin = (props) => {
       };
     }, []);
 
-    const handleConnect = async () => {
-      try {
-        const { web3, account } = await connectToMetamask();
-        setAccount(account); //saving the connected wallet 
-        setIsConnected(true);
-      } catch (err) {
-        alert("Failed to connect wallet");
-      }
-    };
+  
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
         <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">

@@ -72,7 +72,7 @@ export const VotingPage = ({
             </div>
 
             <button
-              onClick={handleVote}
+              onClick={() => handleVote(selectedCandidate)}
               disabled={hasVoted || selectedCandidate === null}
               className={`mt-6 w-full py-3 px-4 rounded-lg font-semibold text-white transition-all ${
                 hasVoted || selectedCandidate === null

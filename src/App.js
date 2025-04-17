@@ -1,4 +1,4 @@
-import React , { useState } from 'react';
+import React , { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
@@ -7,6 +7,10 @@ import { CandidatesPage } from './components/CandidatesPage';
 import { candidatesList } from './constants/CandidatesList';
 import { Res } from './components/LiveResults';
 import { MetaMaskLogin } from './components/ConnectWallet';
+import {ethers} from 'ethers';
+import { contractAddress, contractAbi } from "./constants/contract_data"; 
+
+
 
 
 
@@ -21,9 +25,22 @@ function App() {
   });
 
   const [candidates, setCandidates] = useState(candidatesList);
-
   const [hasVoted, setHasVoted] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+
+  useEffect( () => {
+    getCandidates();
+    getRemainingTime();
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+    }
+
+    return() => {
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      }
+    }
+  });
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -48,14 +65,36 @@ function App() {
     });
   };
 
-  const handleVote = () => {
-    if (selectedCandidate === null) return;
-    setCandidates(candidates.map(candidate =>
-      candidate.id === selectedCandidate
-        ? { ...candidate, votes: candidate.votes + 1 }
-        : candidate
-    ));
-    setHasVoted(true);
+const getCandidates = async(candidateId) => {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = await provider.getSigner();
+    const contractInstance = new ethers.Contract(contractAddress, contractAbi, signer);
+    const candidatesList = await contractInstance.getAllVotes();
+    const formattedCandidates = candidatesList.map((candidate, index) => {
+        return {
+          id: index,
+          name: candidate.name,
+          voteCount: candidate.voteCount.toNumber()
+        }
+    });
+    setCandidates(formattedCandidates);
+    
+    
+};
+
+const handleVote = async(candidateId) => {
+      console.log(candidateId);
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      const contractInstance = new ethers.Contract(contractAddress, contractAbi, signer);
+
+      const tx = await contractInstance.vote(candidateId);//yasmine remember bch thothoulna lvariable
+      await tx.wait();
+      console.log("transaction successful");
+      
   };
 
   const connectToMetamask = () => {
@@ -114,3 +153,4 @@ function App() {
 }
 
 export default App;
+

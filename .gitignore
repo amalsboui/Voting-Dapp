@@ -23,7 +23,7 @@ yarn-debug.log*
 yarn-error.log*
 
 ./public
-./src/constants/CandidatesList.js
+./src/constants
 
 node_modules
 .env
