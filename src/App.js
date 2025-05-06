@@ -24,6 +24,7 @@ function App() {
   });
 
   const [candidates, setCandidates] = useState([]);
+  const [winners, setWinners] = useState([]);
   const [hasVoted, setHasVoted] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [remainingTime, setremainingTime] = useState('');
@@ -32,11 +33,17 @@ function App() {
 
 
 
+  //set dates
+  const now = Date.now() / 1000;
+  const votingStart = now; // Now +darjin
+  const VotingEnd = votingStart + 300; // +draj
+
   useEffect(() => {
     const fetchData = async () => {
       await getCandidates();
       await getRemainingTime();
       await getCurrentStatus();
+      await getWinners();
     };
     
     fetchData();
@@ -114,12 +121,36 @@ const getCandidates = async(candidateId) => {
         return {
           id: index,
           name: candidate.name,
+          imageCID: candidate.imageCID,
           voteCount
         }
     });
     setCandidates(formattedCandidates);   
 };
 
+const getWinners = async() => {
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  await provider.send("eth_requestAccounts", []);
+  const signer = await provider.getSigner();
+  const contractInstance = new ethers.Contract(contractAddress, contractAbi, signer);
+  const winnerIndexes = await contractInstance.getWinners();
+  const formattedWinners = winnerIndexes.map(index => 
+    candidates.find(c => c.index === index) 
+  );
+  setWinners(formattedWinners);   
+};
+
+async function setVotingPeriod(votingStart, VotingEnd) {
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  await provider.send("eth_requestAccounts", []);
+  const signer = await provider.getSigner();
+  const contractInstance = new ethers.Contract (contractAddress, contractAbi, signer);
+
+  //y3adi lel contrat lwa9t likhtarneh
+  const tx = await contractInstance.setVotingPeriod(votingStart, VotingEnd);
+  await tx.wait();
+
+}
 
 async function getRemainingTime() {
   const provider = new ethers.BrowserProvider(window.ethereum);
@@ -214,14 +245,14 @@ async function getCurrentStatus() {
          //</ProtectedRoute>
          } />
                                             
-        <Route path="/res" element={<ProtectedRoute><Res
+        <Route path="/res" element={<Res
                                             candidates={candidates}
-                                            selectedCandidate={selectedCandidate}
-                                            hasVoted={hasVoted}
-                                            setSelectedCandidate={setSelectedCandidate}
-                                            handleVote={handleVote}
-                                            setAuth={setAuth}
-                                                    /></ProtectedRoute>} />
+                                            votingStart={votingStart}
+                                            votingStatus={votingStatus}
+                                            remainingTime={remainingTime}
+                                            winners={winners}//zid thabat khatrou tableau 
+                                            
+                                                    />} />
 
 
         <Route path="/logmeta" element={<MetaMaskLogin connectWallet = {connectToMetamask}   />} />
@@ -233,4 +264,5 @@ async function getCurrentStatus() {
 }
 
 export default App;
+
 
