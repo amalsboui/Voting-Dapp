@@ -2,11 +2,11 @@ import React from 'react';
 import { BarChart3, Clock, Trophy } from 'lucide-react';
 
 export const Res = ({
-    candidates = [],
+    candidates ,
     votingStart,
     votingStatus,
     remainingTime,
-    winners=[],
+    winners,
 }) => {
   const getCurrentTime = () => {
         return Date.now() / 1000; // Unix timestamp in seconds
@@ -47,7 +47,7 @@ export const Res = ({
         
         <div className="mb-4 p-3 bg-amber-50 rounded-lg">
           <p className="font-medium text-amber-800">
-            Winners: {winners.map(w => w.name).join(', ')}
+            Winners: {winners.map(w => w.name).join(', ') }
           </p>
         </div>
       </div>
