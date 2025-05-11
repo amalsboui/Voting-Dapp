@@ -53,7 +53,7 @@ export const VotingPage = ({
                 >
                   <div className="flex items-center space-x-4">
                     <img
-                      src={candidate.image}
+                      src={`https://gateway.pinata.cloud/ipfs/${candidate.imageCID}`}
                       alt={candidate.name}
                       className="w-16 h-16 rounded-full object-cover"
                     />

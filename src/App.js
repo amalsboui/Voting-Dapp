@@ -10,6 +10,7 @@ import { MetaMaskLogin } from './components/ConnectWallet';
 import {ethers} from 'ethers';
 import { contractAddress, contractAbi } from "./constants/contract_data"; 
 import ProtectedRoute from './components/ProtectedRoute';
+import { connectToMetamask, listenToAccountChanges } from './blockchain/web3Wallet';
 
 
 
@@ -30,39 +31,45 @@ function App() {
   const [remainingTime, setremainingTime] = useState('');
   const [votingStatus, setVotingStatus] = useState(true);
   const [CanVote, setCanVote] = useState(true); // Convert to seconds ONCE at the top level
-const [votingPeriod, setVotingPeriod] = useState({
-  start: Math.floor(staticStartTime.getTime() / 1000), // in seconds
-  end: Math.floor(staticEndTime.getTime() / 1000),    // in seconds
-  startReadable: staticStartTime.toISOString(),       // for display
-  endReadable: staticEndTime.toISOString()           // for display
-});
-
-
-
-
-
+  const [walletInfo, setWalletInfo] = useState(null);
 
   //set dates
-  const staticStartTime = new Date("2025-05-07T10:34:18.654427Z"); // UTC time
-  const staticEndTime = new Date("2025-05-07T10:34:58.915885Z"); // 1 week later
+  const staticStartTime = new Date("2025-05-11T11:01:19.654427Z"); // UTC time
+  const staticEndTime = new Date("2025-05-11T11:02:08.915885Z"); // 1 week later
   
   
-const votingStart = Math.floor(staticStartTime.getTime() / 1000);
-const votingEnd = Math.floor(staticEndTime.getTime() / 1000);
+  const votingStart = Math.floor(staticStartTime.getTime() / 1000);
+  const votingEnd = Math.floor(staticEndTime.getTime() / 1000);
 
-  
 
   useEffect(() => {
     const fetchData = async () => {
-      await getCandidates();
-      await getRemainingTime();
-      await getCurrentStatus();
-      await getWinners();
-      await setVotingPeriod(votingStart, votingEnd);
+      if (walletInfo?.contract && walletInfo?.address) {
+      await getCandidates(walletInfo.contract);
+      await getRemainingTime(walletInfo.contract);
+      await getCurrentStatus(walletInfo.contract);
+      await getWinners(walletInfo.contract);
+      await setVotingPeriod(walletInfo.contract, votingStart, votingEnd);
+    }
     };
     
     fetchData();
-  }, []);
+  }, [walletInfo]);
+
+  useEffect(() => {
+  const connect = async () => {
+    const info = await connectToMetamask();
+    setWalletInfo(info);
+  };
+
+  connect();
+
+  const cleanup = listenToAccountChanges(() => {
+    window.location.reload(); // or reconnect logic
+  });
+
+  return cleanup;
+}, []);
 
   const handleLogin = async(e) => {
     e.preventDefault();
@@ -124,11 +131,7 @@ setFormData({
 });
 };
 
-const getCandidates = async(candidateId) => {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
-    const signer = await provider.getSigner();
-    const contractInstance = new ethers.Contract(contractAddress, contractAbi, signer);
+const getCandidates = async(contractInstance) => {
     const candidatesList = await contractInstance.getAllVotes();
     const formattedCandidates = candidatesList.map((candidate, index) => {
     const voteCount = Number(ethers.toBigInt(candidate.voteCount));
@@ -137,17 +140,13 @@ const getCandidates = async(candidateId) => {
           id: index,
           name: candidate.name,
           imageCID: candidate.imageCID,
-          voteCount
+          voteCount: candidate.voteCount
         }
     });
     setCandidates(formattedCandidates);   
 };
 
-const getWinners = async() => {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const contractInstance = new ethers.Contract(contractAddress, contractAbi, signer);
+const getWinners = async(contractInstance) => {
   const winnerIndexes = await contractInstance.getWinners();
   const indexes = winnerIndexes.map(index => Number(ethers.toBigInt(index)));
 
@@ -159,12 +158,7 @@ const getWinners = async() => {
   setWinners(formattedWinners);   
 };
 
-async function setVotingPeriod(votingStart, votingEnd) {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const contractInstance = new ethers.Contract (contractAddress, contractAbi, signer);
-
+async function setVotingPeriod(contractInstance,votingStart, votingEnd) {
   //y3adi lel contrat lwa9t likhtarneh
   const tx = await contractInstance.setVotingPeriod(votingStart,votingEnd );
   await tx.wait();
@@ -172,22 +166,12 @@ async function setVotingPeriod(votingStart, votingEnd) {
 
 }
 
-async function getRemainingTime() {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const contractInstance = new ethers.Contract (contractAddress, contractAbi, signer);
+async function getRemainingTime(contractInstance) {
   const time = await contractInstance.getRemainingTime();
   setremainingTime(parseInt(time, 16));
 }
 
-const handleVote = async(candidateId) => {
-      console.log(candidateId);
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      const contractInstance = new ethers.Contract(contractAddress, contractAbi, signer);
-
+const handleVote = async(contractInstance,candidateId) => {
       const tx = await contractInstance.vote(candidateId);//yasmine remember bch thothoulna lvariable
       await tx.wait();
       console.log("transaction successful");
@@ -195,31 +179,19 @@ const handleVote = async(candidateId) => {
       
   };
 
-async function canVote() {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const contractInstance = new ethers.Contract (
-    contractAddress, contractAbi, signer
-  );
-  const voteStatus = await contractInstance.voters(await signer.getAddress());
+async function canVote(contractInstance, userAddress) {
+  
+  const voteStatus = await contractInstance.voters(userAddress);
   setCanVote(voteStatus);
 
 }
 
-async function getCurrentStatus() {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const contractInstance = new ethers.Contract (contractAddress, contractAbi, signer);
+async function getCurrentStatus(contractInstance) {
   const status = await contractInstance.getVotingStatus();
   console.log(status);
   setVotingStatus(status);
 }
 
-  const connectToMetamask = () => {
-
-  };
   // Function to delete the token from localStorage
   const handleLogout = () => {
   localStorage.removeItem('access_token');
@@ -249,14 +221,14 @@ async function getCurrentStatus() {
                                           handleInputChange={handleInputChange}
                                           handleSubmit={handleRegister}/>} />
 
-        <Route path="/vote" element={<ProtectedRoute><VotingPage
+        <Route path="/vote" element={<VotingPage
                                       candidates={candidates}
                                       selectedCandidate={selectedCandidate}
                                       hasVoted={hasVoted}
                                       setSelectedCandidate={setSelectedCandidate}
                                       handleVote={handleVote}
                                       setAuth={setAuth}
-                                     /></ProtectedRoute>} />
+                                     />} />
 
         <Route path="/Candidates" element={
           // <ProtectedRoute>
@@ -268,8 +240,8 @@ async function getCurrentStatus() {
         <Route path="/res" element={<Res
                                             candidates={candidates}
                                             votingStart={votingStart}
+                                            votingEnd={votingEnd}
                                             votingStatus={votingStatus}
-                                            remainingTime={remainingTime}
                                             winners={winners}//zid thabat khatrou tableau 
                                             
                                                     />} />
