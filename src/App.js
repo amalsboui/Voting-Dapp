@@ -32,10 +32,11 @@ function App() {
   const [votingStatus, setVotingStatus] = useState(true);
   const [CanVote, setCanVote] = useState(true); // Convert to seconds ONCE at the top level
   const [walletInfo, setWalletInfo] = useState(null);
+  const [votingPeriodSet, setVotingPeriodSet] = useState(false);
 
   //set dates
-  const staticStartTime = new Date("2025-05-11T11:01:19.654427Z"); // UTC time
-  const staticEndTime = new Date("2025-05-11T11:02:08.915885Z"); // 1 week later
+  const staticStartTime = new Date("2025-06-02T21:49:00.654427Z"); // UTC time
+  const staticEndTime = new Date("2025-06-02T21:50:08.915885Z"); // 1 week later
   
   
   const votingStart = Math.floor(staticStartTime.getTime() / 1000);
@@ -45,12 +46,22 @@ function App() {
   useEffect(() => {
     const fetchData = async () => {
       if (walletInfo?.contract && walletInfo?.address) {
-      await getCandidates(walletInfo.contract);
-      await getRemainingTime(walletInfo.contract);
-      await getCurrentStatus(walletInfo.contract);
-      await getWinners(walletInfo.contract);
-      await setVotingPeriod(walletInfo.contract, votingStart, votingEnd);
-    }
+        try {
+          // First check if voting period is already set
+          const status = await walletInfo.contract.getVotingStatus();
+          if (!status && !votingPeriodSet) {
+            await setVotingPeriod(walletInfo.contract, votingStart, votingEnd);
+            setVotingPeriodSet(true);
+          }
+          
+          await getCandidates(walletInfo.contract);
+          await getRemainingTime(walletInfo.contract);
+          await getCurrentStatus(walletInfo.contract);
+          await getWinners(walletInfo.contract);
+        } catch (error) {
+          console.error("Error fetching data:", error);
+        }
+      }
     };
     
     fetchData();
@@ -132,64 +143,95 @@ setFormData({
 };
 
 const getCandidates = async(contractInstance) => {
+  try {
     const candidatesList = await contractInstance.getAllVotes();
     const formattedCandidates = candidatesList.map((candidate, index) => {
-    const voteCount = Number(ethers.toBigInt(candidate.voteCount));
-
-        return {
-          id: index,
-          name: candidate.name,
-          imageCID: candidate.imageCID,
-          voteCount: candidate.voteCount
-        }
+      return {
+        id: index, // Frontend ID (0-based)
+        index: Number(candidate.index), // Contract ID (1-based)
+        name: candidate.name,
+        imageCID: candidate.imageCID,
+        votes: Number(ethers.toBigInt(candidate.voteCount))
+      }
     });
-    setCandidates(formattedCandidates);   
+    setCandidates(formattedCandidates);
+  } catch (error) {
+    console.error("Error getting candidates:", error);
+  }
 };
 
 const getWinners = async(contractInstance) => {
-  const winnerIndexes = await contractInstance.getWinners();
-  const indexes = winnerIndexes.map(index => Number(ethers.toBigInt(index)));
-
-  // 3. Récupération des objets candidats gagnants
-  const formattedWinners = indexes
-    .map(index => candidates.find(c => c.index === index))
-    .filter(Boolean);
-  
-  setWinners(formattedWinners);   
+  try {
+    const winnerIndexes = await contractInstance.getWinners();
+    const indexes = winnerIndexes.map(index => Number(ethers.toBigInt(index)));
+    const formattedWinners = indexes
+      .map(index => candidates.find(c => c.index === index))
+      .filter(Boolean);
+    setWinners(formattedWinners);
+  } catch (error) {
+    console.error("Error getting winners:", error);
+  }
 };
 
-async function setVotingPeriod(contractInstance,votingStart, votingEnd) {
-  //y3adi lel contrat lwa9t likhtarneh
-  const tx = await contractInstance.setVotingPeriod(votingStart,votingEnd );
-  await tx.wait();
-  
-
+async function setVotingPeriod(contractInstance, votingStart, votingEnd) {
+  try {
+    const tx = await contractInstance.setVotingPeriod(votingStart, votingEnd);
+    await tx.wait();
+    console.log("Voting period set successfully");
+  } catch (error) {
+    console.error("Error setting voting period:", error);
+  }
 }
 
 async function getRemainingTime(contractInstance) {
-  const time = await contractInstance.getRemainingTime();
-  setremainingTime(parseInt(time, 16));
+  try {
+    const time = await contractInstance.getRemainingTime();
+    setremainingTime(parseInt(time, 16));
+  } catch (error) {
+    console.error("Error getting remaining time:", error);
+  }
 }
 
-const handleVote = async(contractInstance,candidateId) => {
-      const tx = await contractInstance.vote(candidateId);//yasmine remember bch thothoulna lvariable
-      await tx.wait();
-      console.log("transaction successful");
-      canVote(); //to add the address of the user who voted in the voters table
-      
-  };
+const handleVote = async (candidateId) => {
+  if (!walletInfo?.contract) return;
+  
+  try {
+    // Find the candidate with the frontend ID
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate) {
+      console.error("Candidate not found");
+      return;
+    }
+    
+    // Use the contract's index (1-based) for voting
+    const tx = await walletInfo.contract.vote(candidate.index - 1);
+    await tx.wait();
+    console.log("Vote transaction successful");
+    setHasVoted(true);
+    
+    // Refresh the candidates list
+    await getCandidates(walletInfo.contract);
+  } catch (error) {
+    console.error("Error voting:", error);
+  }
+};
 
 async function canVote(contractInstance, userAddress) {
-  
-  const voteStatus = await contractInstance.voters(userAddress);
-  setCanVote(voteStatus);
-
+  try {
+    const voteStatus = await contractInstance.voters(userAddress);
+    setCanVote(voteStatus);
+  } catch (error) {
+    console.error("Error checking vote status:", error);
+  }
 }
 
 async function getCurrentStatus(contractInstance) {
-  const status = await contractInstance.getVotingStatus();
-  console.log(status);
-  setVotingStatus(status);
+  try {
+    const status = await contractInstance.getVotingStatus();
+    setVotingStatus(status);
+  } catch (error) {
+    console.error("Error getting voting status:", error);
+  }
 }
 
   // Function to delete the token from localStorage
@@ -237,14 +279,15 @@ async function getCurrentStatus(contractInstance) {
          //</ProtectedRoute>
          } />
                                             
-        <Route path="/res" element={<Res
-                                            candidates={candidates}
-                                            votingStart={votingStart}
-                                            votingEnd={votingEnd}
-                                            votingStatus={votingStatus}
-                                            winners={winners}//zid thabat khatrou tableau 
-                                            
-                                                    />} />
+        <Route path="/results" element={
+          <Res
+            candidates={candidates}
+            votingStart={votingStart}
+            votingEnd={votingEnd}
+            votingStatus={votingStatus}
+            winners={winners}
+          />
+        } />
 
 
         <Route path="/logmeta" element={<MetaMaskLogin connectWallet = {connectToMetamask}   />} />
