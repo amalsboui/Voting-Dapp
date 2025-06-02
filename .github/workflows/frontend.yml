@@ -4,6 +4,7 @@
 name: Frontend CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
     paths: 
@@ -15,9 +16,7 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     
     steps:
     - uses: actions/checkout@v4
@@ -36,3 +35,23 @@ jobs:
       run: |
         cd frontend
         CI=false npm run build   
+  test: 
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run CandidatesPage tests
+      run: |
+        cd frontend
+        CI=true npm test CandidatesPage.test.js --watchAll=false  
