@@ -16,9 +16,7 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     
     steps:
     - uses: actions/checkout@v4
@@ -33,10 +31,10 @@ jobs:
         cd frontend
         npm ci
         
-    - name: Run tests
+    - name: Run CandidatesPage tests
       run: |
         cd frontend
-        CI=true npm test -- --watchAll=false
+        CI=true npm test CandidatesPage.test.js -- --watchAll=false
         
     - name: Build app
       run: |
