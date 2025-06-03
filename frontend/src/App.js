@@ -9,6 +9,9 @@ import { MetaMaskLogin } from './components/ConnectWallet';
 import { ethers } from 'ethers';
 import { contractAddress, contractAbi } from "./constants/contract_data"; 
 import ProtectedRoute from './components/ProtectedRoute';
+import { connectToMetamask, listenToAccountChanges } from './blockchain/web3Wallet';
+
+
 import { BACKEND_URL } from './apiConfig';
 
 function App() {
@@ -22,21 +25,101 @@ function App() {
   });
 
   const [candidates, setCandidates] = useState([]);
+  const [winners, setWinners] = useState([]);
   const [hasVoted, setHasVoted] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [remainingTime, setremainingTime] = useState('');
   const [votingStatus, setVotingStatus] = useState(true);
-  const [CanVote, setCanVote] = useState(true);
+  const [CanVote, setCanVote] = useState(true); // Convert to seconds ONCE at the top level
+  const [walletInfo, setWalletInfo] = useState(null);
+  const [votingPeriodSet, setVotingPeriodSet] = useState(false);
+
+  //set dates
+  const staticStartTime = new Date("2025-06-03T15:48:00.654427Z"); // UTC time
+  const staticEndTime = new Date("2025-06-03T15:50:08.915885Z"); // 1 week later
+  
+  
+  const votingStart = Math.floor(staticStartTime.getTime() / 1000);
+  const votingEnd = Math.floor(staticEndTime.getTime() / 1000);
+
 
   useEffect(() => {
-    const fetchData = async () => {
-      await getCandidates();
-      await getRemainingTime();
-      await getCurrentStatus();
+    const initializeContractData = async () => {
+      if (!walletInfo?.contract || !walletInfo?.address) return;
+
+      try {
+        const candidates = await walletInfo.contract.getAllVotes();
+        const currentTime = Math.floor(Date.now() / 1000);
+        const isVotingActive = currentTime >= votingStart && currentTime <= votingEnd;
+        
+        setVotingStatus(isVotingActive);
+
+        const formattedCandidates = candidates.map((candidate, index) => ({
+          id: index,
+          name: candidate.name,
+          imageCID: candidate.imageCID,
+          votes: Number(ethers.toBigInt(candidate.voteCount))
+        }));
+
+        setCandidates(formattedCandidates);
+      } catch (error) {
+        console.error("Error initializing contract data:", error);
+      }
     };
-    
-    fetchData();
-  }, []);
+
+    if (walletInfo?.contract && walletInfo?.address) {
+      initializeContractData();
+    }
+  }, [walletInfo, votingStart, votingEnd]);
+
+  // Periodic updates
+  useEffect(() => {
+    if (!walletInfo?.contract || !walletInfo?.address) return;
+
+    const updateData = async () => {
+      try {
+        const candidates = await walletInfo.contract.getAllVotes();
+        const currentTime = Math.floor(Date.now() / 1000);
+        const isVotingActive = currentTime >= votingStart && currentTime <= votingEnd;
+        
+        setVotingStatus(isVotingActive);
+        setremainingTime(votingEnd - currentTime);
+
+        const formattedCandidates = candidates.map((candidate, index) => ({
+          id: index,
+          name: candidate.name,
+          imageCID: candidate.imageCID,
+          votes: Number(ethers.toBigInt(candidate.voteCount))
+        }));
+
+        setCandidates(formattedCandidates);
+      } catch (error) {
+        console.error("Error updating data:", error);
+      }
+    };
+
+    // Initial update
+    updateData();
+
+    // Set up periodic updates
+    const interval = setInterval(updateData, 10000);
+    return () => clearInterval(interval);
+  }, [walletInfo, votingStart, votingEnd]);
+
+  useEffect(() => {
+  const connect = async () => {
+    const info = await connectToMetamask();
+    setWalletInfo(info);
+  };
+
+  connect();
+
+  const cleanup = listenToAccountChanges(() => {
+    window.location.reload(); // or reconnect logic
+  });
+
+  return cleanup;
+}, []);
 
   const handleLogin = async(e) => {
     e.preventDefault();
@@ -97,73 +180,121 @@ setFormData({
 });
 };
 
-const getCandidates = async(candidateId) => {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
-    const signer = await provider.getSigner();
-    const contractInstance = new ethers.Contract(contractAddress, contractAbi, signer);
+const getCandidates = async(contractInstance) => {
+  try {
     const candidatesList = await contractInstance.getAllVotes();
     const formattedCandidates = candidatesList.map((candidate, index) => {
-    const voteCount = Number(ethers.toBigInt(candidate.voteCount));
-
-        return {
-          id: index,
-          name: candidate.name,
-          voteCount
-        }
+      return {
+        id: index,  // Use 0-based index for the frontend
+        name: candidate.name,
+        imageCID: candidate.imageCID,
+        votes: Number(ethers.toBigInt(candidate.voteCount))
+      }
     });
-    setCandidates(formattedCandidates);   
+    setCandidates(formattedCandidates);
+  } catch (error) {
+    console.error("Error getting candidates:", error);
+  }
 };
 
+const getWinners = async(contractInstance) => {
+  try {
+    const winnerIndexes = await contractInstance.getWinners();
+    const indexes = winnerIndexes.map(index => Number(ethers.toBigInt(index)));
+    const formattedWinners = indexes
+      .map(index => candidates.find(c => c.index === index))
+      .filter(Boolean);
+    setWinners(formattedWinners);
+  } catch (error) {
+    console.error("Error getting winners:", error);
+  }
+};
 
-async function getRemainingTime() {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const contractInstance = new ethers.Contract (contractAddress, contractAbi, signer);
-  const time = await contractInstance.getRemainingTime();
-  setremainingTime(parseInt(time, 16));
+async function setVotingPeriod(contractInstance, votingStart, votingEnd) {
+  try {
+    const tx = await contractInstance.setVotingPeriod(votingStart, votingEnd);
+    await tx.wait();
+    console.log("Voting period set successfully");
+  } catch (error) {
+    console.error("Error setting voting period:", error);
+  }
 }
 
-const handleVote = async(candidateId) => {
-      console.log(candidateId);
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      const contractInstance = new ethers.Contract(contractAddress, contractAbi, signer);
+async function getRemainingTime(contractInstance) {
+  try {
+    const time = await contractInstance.getRemainingTime();
+    setremainingTime(parseInt(time, 16));
+  } catch (error) {
+    console.error("Error getting remaining time:", error);
+  }
+}
 
-      const tx = await contractInstance.vote(candidateId);//yasmine remember bch thothoulna lvariable
+const handleVote = async (candidateId) => {
+  if (!walletInfo?.contract || !walletInfo?.address) {
+    console.error("Wallet or contract not initialized");
+    return;
+  }
+  
+  try {
+    // First set the voting period
+    try {
+      const tx = await walletInfo.contract.setVotingPeriod(votingStart, votingEnd);
       await tx.wait();
-      console.log("transaction successful");
-      canVote(); //to add the address of the user who voted in the voters table
-      
-  };
+    } catch (error) {
+      if (!error.message?.includes("Start time must be in future")) {
+        console.error("Error setting voting period:", error);
+        return;
+      }
+    }
 
-async function canVote() {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const contractInstance = new ethers.Contract (
-    contractAddress, contractAbi, signer
-  );
-  const voteStatus = await contractInstance.voters(await signer.getAddress());
-  setCanVote(voteStatus);
+    // Now proceed with vote
+    const tx = await walletInfo.contract.vote(candidateId);
+    await tx.wait();
+    setHasVoted(true);
+    
+    // Refresh the candidates list
+    const updatedCandidates = await walletInfo.contract.getAllVotes();
+    const formattedCandidates = updatedCandidates.map((candidate, index) => ({
+      id: index,
+      name: candidate.name,
+      imageCID: candidate.imageCID,
+      votes: Number(ethers.toBigInt(candidate.voteCount))
+    }));
+    setCandidates(formattedCandidates);
+    
+  } catch (error) {
+    console.error("Error voting:", error);
+    if (error.message?.includes("execution reverted")) {
+      if (error.message.toLowerCase().includes("voting period")) {
+        console.error("Error: Voting period has not started or has ended");
+      } else if (error.message.toLowerCase().includes("already voted")) {
+        console.error("Error: You have already voted");
+        setHasVoted(true);
+      } else {
+        console.error("Error: Transaction failed");
+      }
+    }
+  }
+};
 
+async function canVote(contractInstance, userAddress) {
+  try {
+    const voteStatus = await contractInstance.voters(userAddress);
+    setCanVote(voteStatus);
+  } catch (error) {
+    console.error("Error checking vote status:", error);
+  }
 }
 
-async function getCurrentStatus() {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-  const contractInstance = new ethers.Contract (contractAddress, contractAbi, signer);
-  const status = await contractInstance.getVotingStatus();
-  console.log(status);
-  setVotingStatus(status);
+async function getCurrentStatus(contractInstance) {
+  try {
+    const status = await contractInstance.getVotingStatus();
+    setVotingStatus(status);
+  } catch (error) {
+    console.error("Error getting voting status:", error);
+  }
 }
 
-  const connectToMetamask = () => {
-
-  };
   // Function to delete the token from localStorage
   const handleLogout = () => {
   localStorage.removeItem('access_token');
@@ -177,54 +308,67 @@ async function getCurrentStatus() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
     
-        <Route path="/login" element={<AuthForm 
-                                       type="login"
-                                       auth={auth}
-                                       formData={formData}
-                                       setAuth={setAuth}
-                                       handleInputChange={handleInputChange}
-                                       handleSubmit={handleLogin}/>} />
+        <Route path="/login" element={
+          <AuthForm 
+            type="login"
+            auth={auth}
+            formData={formData}
+            setAuth={setAuth}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleLogin}
+          />
+        } />
 
-        <Route path="/register" element={<AuthForm 
-                                          type="register"
-                                          auth={auth}
-                                          formData={formData}
-                                          setAuth={setAuth}
-                                          handleInputChange={handleInputChange}
-                                          handleSubmit={handleRegister}/>} />
+        <Route path="/register" element={
+          <AuthForm 
+            type="register"
+            auth={auth}
+            formData={formData}
+            setAuth={setAuth}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleRegister}
+          />
+        } />
 
-        <Route path="/vote" element={<ProtectedRoute><VotingPage
-                                      candidates={candidates}
-                                      selectedCandidate={selectedCandidate}
-                                      hasVoted={hasVoted}
-                                      setSelectedCandidate={setSelectedCandidate}
-                                      handleVote={handleVote}
-                                      setAuth={setAuth}
-                                     /></ProtectedRoute>} />
+        <Route path="/vote" element={
+          <VotingPage
+            candidates={candidates}
+            selectedCandidate={selectedCandidate}
+            hasVoted={hasVoted}
+            setSelectedCandidate={setSelectedCandidate}
+            handleVote={handleVote}
+            setAuth={setAuth}
+            votingStart={votingStart}
+            votingEnd={votingEnd}
+            votingStatus={votingStatus}
+          />
+        } />
 
         <Route path="/Candidates" element={
-          <ProtectedRoute>
-            <CandidatesPage
-              candidates={candidates} />
-         </ProtectedRoute>
-         } />
+          <CandidatesPage 
+            candidates={candidates}
+          />
+        } />
                                             
-        <Route path="/res" element={<ProtectedRoute><Res
-                                            candidates={candidates}
-                                            selectedCandidate={selectedCandidate}
-                                            hasVoted={hasVoted}
-                                            setSelectedCandidate={setSelectedCandidate}
-                                            handleVote={handleVote}
-                                            setAuth={setAuth}
-                                                    /></ProtectedRoute>} />
+        <Route path="/results" element={
+          <Res
+            candidates={candidates}
+            votingStart={votingStart}
+            votingEnd={votingEnd}
+            votingStatus={votingStatus}
+            winners={winners}
+          />
+        } />
 
-
-        <Route path="/logmeta" element={<MetaMaskLogin connectWallet = {connectToMetamask}   />} />
-
+        <Route path="/logmeta" element={
+          <MetaMaskLogin 
+            connectWallet={connectToMetamask}
+          />
+        } />
       </Routes>
-
     </Router>
   );
 }
 
 export default App;
+

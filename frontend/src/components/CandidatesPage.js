@@ -18,7 +18,7 @@ export const CandidatesPage = ({ candidates }) => {
           {candidates.map((candidate) => (
             <div key={candidate.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
               <img
-                src={candidate.image}
+                src={`https://gateway.pinata.cloud/ipfs/${candidate.imageCID}`}
                 alt={candidate.name}
                 className="w-full h-48 object-contain"
               />
