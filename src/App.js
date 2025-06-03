@@ -35,8 +35,8 @@ function App() {
   const [votingPeriodSet, setVotingPeriodSet] = useState(false);
 
   //set dates
-  const staticStartTime = new Date("2025-06-02T21:49:00.654427Z"); // UTC time
-  const staticEndTime = new Date("2025-06-02T21:50:08.915885Z"); // 1 week later
+  const staticStartTime = new Date("2025-06-03T15:48:00.654427Z"); // UTC time
+  const staticEndTime = new Date("2025-06-03T15:50:08.915885Z"); // 1 week later
   
   
   const votingStart = Math.floor(staticStartTime.getTime() / 1000);
@@ -44,28 +44,67 @@ function App() {
 
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (walletInfo?.contract && walletInfo?.address) {
-        try {
-          // First check if voting period is already set
-          const status = await walletInfo.contract.getVotingStatus();
-          if (!status && !votingPeriodSet) {
-            await setVotingPeriod(walletInfo.contract, votingStart, votingEnd);
-            setVotingPeriodSet(true);
-          }
-          
-          await getCandidates(walletInfo.contract);
-          await getRemainingTime(walletInfo.contract);
-          await getCurrentStatus(walletInfo.contract);
-          await getWinners(walletInfo.contract);
-        } catch (error) {
-          console.error("Error fetching data:", error);
-        }
+    const initializeContractData = async () => {
+      if (!walletInfo?.contract || !walletInfo?.address) return;
+
+      try {
+        const candidates = await walletInfo.contract.getAllVotes();
+        const currentTime = Math.floor(Date.now() / 1000);
+        const isVotingActive = currentTime >= votingStart && currentTime <= votingEnd;
+        
+        setVotingStatus(isVotingActive);
+
+        const formattedCandidates = candidates.map((candidate, index) => ({
+          id: index,
+          name: candidate.name,
+          imageCID: candidate.imageCID,
+          votes: Number(ethers.toBigInt(candidate.voteCount))
+        }));
+
+        setCandidates(formattedCandidates);
+      } catch (error) {
+        console.error("Error initializing contract data:", error);
       }
     };
-    
-    fetchData();
-  }, [walletInfo]);
+
+    if (walletInfo?.contract && walletInfo?.address) {
+      initializeContractData();
+    }
+  }, [walletInfo, votingStart, votingEnd]);
+
+  // Periodic updates
+  useEffect(() => {
+    if (!walletInfo?.contract || !walletInfo?.address) return;
+
+    const updateData = async () => {
+      try {
+        const candidates = await walletInfo.contract.getAllVotes();
+        const currentTime = Math.floor(Date.now() / 1000);
+        const isVotingActive = currentTime >= votingStart && currentTime <= votingEnd;
+        
+        setVotingStatus(isVotingActive);
+        setremainingTime(votingEnd - currentTime);
+
+        const formattedCandidates = candidates.map((candidate, index) => ({
+          id: index,
+          name: candidate.name,
+          imageCID: candidate.imageCID,
+          votes: Number(ethers.toBigInt(candidate.voteCount))
+        }));
+
+        setCandidates(formattedCandidates);
+      } catch (error) {
+        console.error("Error updating data:", error);
+      }
+    };
+
+    // Initial update
+    updateData();
+
+    // Set up periodic updates
+    const interval = setInterval(updateData, 10000);
+    return () => clearInterval(interval);
+  }, [walletInfo, votingStart, votingEnd]);
 
   useEffect(() => {
   const connect = async () => {
@@ -147,8 +186,7 @@ const getCandidates = async(contractInstance) => {
     const candidatesList = await contractInstance.getAllVotes();
     const formattedCandidates = candidatesList.map((candidate, index) => {
       return {
-        id: index, // Frontend ID (0-based)
-        index: Number(candidate.index), // Contract ID (1-based)
+        id: index,  // Use 0-based index for the frontend
         name: candidate.name,
         imageCID: candidate.imageCID,
         votes: Number(ethers.toBigInt(candidate.voteCount))
@@ -193,26 +231,50 @@ async function getRemainingTime(contractInstance) {
 }
 
 const handleVote = async (candidateId) => {
-  if (!walletInfo?.contract) return;
+  if (!walletInfo?.contract || !walletInfo?.address) {
+    console.error("Wallet or contract not initialized");
+    return;
+  }
   
   try {
-    // Find the candidate with the frontend ID
-    const candidate = candidates.find(c => c.id === candidateId);
-    if (!candidate) {
-      console.error("Candidate not found");
-      return;
+    // First set the voting period
+    try {
+      const tx = await walletInfo.contract.setVotingPeriod(votingStart, votingEnd);
+      await tx.wait();
+    } catch (error) {
+      if (!error.message?.includes("Start time must be in future")) {
+        console.error("Error setting voting period:", error);
+        return;
+      }
     }
-    
-    // Use the contract's index (1-based) for voting
-    const tx = await walletInfo.contract.vote(candidate.index - 1);
+
+    // Now proceed with vote
+    const tx = await walletInfo.contract.vote(candidateId);
     await tx.wait();
-    console.log("Vote transaction successful");
     setHasVoted(true);
     
     // Refresh the candidates list
-    await getCandidates(walletInfo.contract);
+    const updatedCandidates = await walletInfo.contract.getAllVotes();
+    const formattedCandidates = updatedCandidates.map((candidate, index) => ({
+      id: index,
+      name: candidate.name,
+      imageCID: candidate.imageCID,
+      votes: Number(ethers.toBigInt(candidate.voteCount))
+    }));
+    setCandidates(formattedCandidates);
+    
   } catch (error) {
     console.error("Error voting:", error);
+    if (error.message?.includes("execution reverted")) {
+      if (error.message.toLowerCase().includes("voting period")) {
+        console.error("Error: Voting period has not started or has ended");
+      } else if (error.message.toLowerCase().includes("already voted")) {
+        console.error("Error: You have already voted");
+        setHasVoted(true);
+      } else {
+        console.error("Error: Transaction failed");
+      }
+    }
   }
 };
 
@@ -247,37 +309,47 @@ async function getCurrentStatus(contractInstance) {
       <Routes>
         <Route path="/" element={<LandingPage />} />
     
-        <Route path="/login" element={<AuthForm 
-                                       type="login"
-                                       auth={auth}
-                                       formData={formData}
-                                       setAuth={setAuth}
-                                       handleInputChange={handleInputChange}
-                                       handleSubmit={handleLogin}/>} />
+        <Route path="/login" element={
+          <AuthForm 
+            type="login"
+            auth={auth}
+            formData={formData}
+            setAuth={setAuth}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleLogin}
+          />
+        } />
 
-        <Route path="/register" element={<AuthForm 
-                                          type="register"
-                                          auth={auth}
-                                          formData={formData}
-                                          setAuth={setAuth}
-                                          handleInputChange={handleInputChange}
-                                          handleSubmit={handleRegister}/>} />
+        <Route path="/register" element={
+          <AuthForm 
+            type="register"
+            auth={auth}
+            formData={formData}
+            setAuth={setAuth}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleRegister}
+          />
+        } />
 
-        <Route path="/vote" element={<VotingPage
-                                      candidates={candidates}
-                                      selectedCandidate={selectedCandidate}
-                                      hasVoted={hasVoted}
-                                      setSelectedCandidate={setSelectedCandidate}
-                                      handleVote={handleVote}
-                                      setAuth={setAuth}
-                                     />} />
+        <Route path="/vote" element={
+          <VotingPage
+            candidates={candidates}
+            selectedCandidate={selectedCandidate}
+            hasVoted={hasVoted}
+            setSelectedCandidate={setSelectedCandidate}
+            handleVote={handleVote}
+            setAuth={setAuth}
+            votingStart={votingStart}
+            votingEnd={votingEnd}
+            votingStatus={votingStatus}
+          />
+        } />
 
         <Route path="/Candidates" element={
-          // <ProtectedRoute>
-            <CandidatesPage
-              candidates={candidates} />
-         //</ProtectedRoute>
-         } />
+          <CandidatesPage 
+            candidates={candidates}
+          />
+        } />
                                             
         <Route path="/results" element={
           <Res
@@ -289,11 +361,12 @@ async function getCurrentStatus(contractInstance) {
           />
         } />
 
-
-        <Route path="/logmeta" element={<MetaMaskLogin connectWallet = {connectToMetamask}   />} />
-
+        <Route path="/logmeta" element={
+          <MetaMaskLogin 
+            connectWallet={connectToMetamask}
+          />
+        } />
       </Routes>
-
     </Router>
   );
 }

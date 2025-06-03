@@ -8,8 +8,19 @@ export const connectToMetamask = async() => {
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
-      const contract = new ethers.Contract(contractAddress, contractAbi, signer);
-      console.log("heyyyyyyyyyyyyyyyy",signer);
+      
+      // Create contract instance with signer
+      const contract = new ethers.Contract(
+        contractAddress, 
+        contractAbi, 
+        signer
+      );
+
+      // Verify contract is properly initialized
+      const isContract = await provider.getCode(contractAddress);
+      if (isContract === '0x') {
+        throw new Error('Contract not deployed at this address');
+      }
 
       return {
         address,
@@ -19,10 +30,11 @@ export const connectToMetamask = async() => {
       };
 
     } catch (err) {
-      console.error(err);
+      console.error("Error connecting to MetaMask:", err);
+      throw err;
     }
   } else {
-    console.error("Metamask is not detected in the browser")
+    throw new Error("Metamask is not detected in the browser");
   }
 }
 
@@ -32,9 +44,8 @@ export const listenToAccountChanges = (handleAccountsChanged) => {
   }
 
   return () => {
-    if (window.ethereum){
+    if (window.ethereum) {
       window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
     }
   };
-
 };

@@ -113,10 +113,9 @@ contract VotingApp is Ownable {
         }
 
       // Function to check if voting is still open
-    function getVotingStatus() public view returns(bool){
-            return block.timestamp >= votingStart && block.timestamp <= votingEnd;
-
-        }
+    function getVotingStatus() public view returns(bool) {
+        return votingTimesSet && block.timestamp >= votingStart && block.timestamp <= votingEnd;
+    }
             // Function to get the remaining time until voting ends
     function getRemainingTime() public view returns (uint256){
             require(block.timestamp >= votingStart, "Voting has not started yet.");
