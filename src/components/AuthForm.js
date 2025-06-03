@@ -1,7 +1,9 @@
 import React from 'react';
 import { Vote, LogIn, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const AuthForm = ({ type, auth, formData, setAuth, handleInputChange, handleSubmit }) => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
       <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
@@ -11,7 +13,12 @@ export const AuthForm = ({ type, auth, formData, setAuth, handleInputChange, han
         <h2 className="text-2xl font-bold text-center mb-8">
           {type === 'login' ? 'Welcome Back' : 'Create Account'}
         </h2>
-        <form onSubmit={handleSubmit}>
+        <form
+  onSubmit={(e) => {
+    e.preventDefault(); // Prevent page reload
+    navigate('/candidates'); // Go to the candidates page
+  }}
+>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -60,7 +67,7 @@ export const AuthForm = ({ type, auth, formData, setAuth, handleInputChange, han
         <p className="mt-4 text-center text-gray-600">
           {type === 'login' ? "Don't have an account?" : "Already have an account?"}
           <button
-            onClick={() => setAuth({ ...auth })}
+            onClick={() => navigate(type === 'login' ? '/register' : '/login')}
             className="ml-1 text-indigo-600 hover:text-indigo-700"
           >
             {type === 'login' ? 'Register' : 'Login'}
