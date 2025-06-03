@@ -137,12 +137,15 @@ function App() {
         const data = await response.json();
         localStorage.setItem('access_token', data.access_token); // Save token
         setAuth({ isAuthenticated: true });
+        return true;
       } else {
         const error = await response.text();
         console.error('Login failed:', error);
+        return false;
       }
     } catch (err) {
       console.error('Error during login:', err);
+      return false;
     }
   };
   

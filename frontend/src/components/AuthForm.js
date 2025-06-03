@@ -14,9 +14,12 @@ export const AuthForm = ({ type, auth, formData, setAuth, handleInputChange, han
           {type === 'login' ? 'Welcome Back' : 'Create Account'}
         </h2>
         <form
-  onSubmit={(e) => {
-    e.preventDefault(); // Prevent page reload
-    navigate('/candidates'); // Go to the candidates page
+  onSubmit={async (e) => {
+    e.preventDefault();
+    const success = await handleSubmit(e); // handleLogin or handleRegister
+    if (success) {
+      navigate('/candidates'); // ✅ only if login/register succeeded
+    }
   }}
 >
           <div className="space-y-4">
