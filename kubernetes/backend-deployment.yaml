@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: flask-backend
-        image: <YOUR_ACR_LOGIN_SERVER>/flask-backend:latest
+        image: votingappacr1234.azurecr.io/flask-backend:latest
         ports:
         - containerPort: 5000
         env:

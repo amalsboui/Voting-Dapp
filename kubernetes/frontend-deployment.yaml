@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: react-frontend
-        image: <YOUR_ACR_LOGIN_SERVER>/react-frontend:latest
+        image: votingappacr1234.azurecr.io/react-frontend:latest
         ports:
         - containerPort: 3000
 ---
