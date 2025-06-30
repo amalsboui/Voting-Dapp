@@ -1,112 +1,93 @@
-# ![Voting DApp](https://raw.githubusercontent.com/yourusername/voting-dapp/main/docs/logo.png) Voting DApp
+# ![Voting DApp](https://raw.githubusercontent.com/amalsboui/voting-dapp/main/docs/logo.png) Voting DApp
 
 [![Frontend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/frontend.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/frontend.yml)  
 [![Backend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/backend.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/backend.yml)  
 [![CD to AKS](https://github.com/amalsboui/voting-dapp/actions/workflows/cd-aks.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/cd-aks.yml)  
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A decentralized voting application built with modern blockchain technologies, featuring a React frontend, Flask backend, and PostgreSQL database, all containerized and deployed with DevOps best practices on Azure Kubernetes Service (AKS).
-
 ---
 
 ## Project Overview
 
-This project implements a secure and scalable voting system using blockchain technology and cloud-native infrastructure.
+Voting DApp is a modern decentralized application built with a full-stack architecture and blockchain integration, enabling secure and transparent voting:
 
-### Technologies Used
-
-- **Frontend:** React.js  
-- **Backend:** Flask (Python)  
-- **Database:** PostgreSQL (for user authentication)  
-- **Smart Contract:** Solidity, developed and tested with [Hardhat](https://hardhat.org/) environment  
-- **Blockchain Network:** Ethereum Sepolia testnet  
-- **Blockchain Deployment:** Hardhat Ignition  
-- **Wallet Integration:** MetaMask browser extension  
-- **Blockchain Interaction:** [ethers.js](https://docs.ethers.io/v5/) connecting frontend to smart contract  
-- **Decentralized Storage:** IPFS for storing candidate images (via [Pinata](https://pinata.cloud/))  
-- **Blockchain Node Provider:** [Alchemy](https://www.alchemy.com/)  
+- **React frontend:** Dynamic UI built with React.js for seamless user interaction.
+- **Flask backend:** Python-based REST API managing user authentication, business logic, and database interaction.
+- **PostgreSQL database:** Stores user data securely, handles authentication details.
+- **Smart contracts:** Developed in **Solidity** within the **Hardhat** environment, governing voting logic on blockchain.
+- **Contract deployment:** Deployed to the **Sepolia testnet** using **Hardhat Ignition** for seamless blockchain deployment automation.
+- **Wallet integration:** MetaMask browser extension enables users to interact with blockchain.
+- **Blockchain interaction:** Uses **Ethers.js** to bridge React frontend and Ethereum blockchain.
+- **Decentralized storage:** Candidate images are stored on **IPFS** via **Pinata**, eliminating the need to manage image storage infrastructure.
 
 ---
 
-## Features
+## Development & Testing
 
-- **User Authentication:** Secure login using PostgreSQL database  
-- **Voting:** Blockchain-based voting with smart contracts on Ethereum testnet  
-- **Wallet Support:** Users connect their MetaMask wallet for identity and signing  
-- **IPFS Storage:** Candidate images are stored off-chain on IPFS using Pinata for reliable pinning and infrastructure-free hosting  
-- **Unit Testing:**  
-  - Frontend: Component tests for candidates page using mocked data  
-  - Backend: API and business logic tests to ensure correctness  
+Our development process is robust and tested across all layers to ensure quality and reliability:
+
+### Frontend
+
+- Unit testing focuses on critical components such as the Candidates page.
+- Tests simulate different candidate data scenarios, verifying correct rendering and behavior.
+- Uses Jest and React Testing Library for component-level testing.
+
+### Backend
+
+- Backend unit tests verify API endpoints, authentication, and core business logic.
+- Tests use pytest for Python, including setting up temporary in-memory databases to isolate test runs.
+- Validates integration with PostgreSQL and JWT-based auth.
+
+### Smart Contracts
+
+- Written in Solidity, tested using Hardhat framework.
+- Includes unit and integration tests to verify correct voting behaviors, edge cases, and security.
+- Automated deployment scripts facilitate contract deployment to Sepolia.
+
+---
+
+## DevOps & Deployment
+
+The project follows modern DevOps best practices to automate building, testing, and deployment:
+
+- **Containerization:** Each service (frontend, backend, database) has dedicated Dockerfiles, allowing isolated, reproducible environments.
+- **Continuous Integration (CI):**  
+  - Backend CI installs dependencies, builds the Flask app, runs unit tests with temporary test DB.  
+  - Frontend CI installs npm dependencies, builds React app, and runs unit tests on UI components.
+- **Continuous Deployment (CD):**  
+  - Builds Docker images from the Dockerfiles.  
+  - Pushes images to **Azure Container Registry (ACR)**.  
+  - Deploys the application to **Azure Kubernetes Service (AKS)** using Kubernetes manifests.
+- **GitHub Actions:** Pipelines automate the entire process, triggered on pushes and pull requests, ensuring only validated code gets deployed.
+- **Secrets Management:** Securely manages Azure credentials and environment variables using GitHub Secrets.
+- **Infrastructure as Code:**  
+  - Utilizes **Terraform Cloud** to define and manage Azure infrastructure, including AKS cluster, ACR, virtual network, and role assignments.  
+  - Ensures repeatable, auditable infrastructure provisioning and management.
+- **Role-based access control:** Uses Azure managed identities and RBAC to secure communication between AKS and ACR.
 
 ---
 
-## DevOps and Deployment
+## Infrastructure & Cloud Stack
 
-This project leverages modern DevOps practices to enable scalable, reliable, and maintainable deployment.
-
-### Containerization
-
-- Each application component (React frontend, Flask backend, PostgreSQL DB) is containerized using **Docker**.
-- Separate Dockerfiles are maintained for each component ensuring clean builds and environment consistency.
-
-### Continuous Integration (CI)
-
-- Implemented using **GitHub Actions** workflows:
-  - **Backend CI**:  
-    - Sets up Python environment  
-    - Installs dependencies  
-    - Runs the Flask app with a temporary test database  
-    - Executes backend unit tests  
-  - **Frontend CI**:  
-    - Sets up Node.js environment  
-    - Installs dependencies  
-    - Builds the React app  
-    - Runs unit tests focused on the candidates page component  
-- Each CI pipeline runs automatically on pushes and pull requests, ensuring code quality and functionality before merging.
-
-### Continuous Deployment (CD)
-
-- CD pipeline triggers after both frontend and backend CI pipelines complete successfully.
-- Steps include:  
-  - Docker image builds for frontend, backend, and PostgreSQL (if applicable).  
-  - Docker images are pushed to **Azure Container Registry (ACR)**, a private Docker registry in Azure.  
-  - Kubernetes manifests (deployments, services, statefulsets) are applied to the **Azure Kubernetes Service (AKS)** cluster, updating the running app.
-- This automated pipeline allows zero-touch deployments, reducing manual errors and speeding up releases.
-
-### Infrastructure Provisioning
-
-- The entire cloud infrastructure is provisioned and managed with **Terraform**, enabling Infrastructure as Code (IaC).
-- Terraform uses a **remote backend** hosted in Terraform Cloud (`ppp_cc/voting-dapp`) to securely store state and collaborate.
-- Resources provisioned include:
-  - Azure Resource Group  
-  - Virtual Network and Subnet  
-  - AKS cluster (2 nodes, system-assigned managed identity)  
-  - Azure Container Registry (ACR)  
-  - Role Assignments to allow AKS to pull images from ACR  
-
-### Azure Role Assignments and Security
-
-- AKS nodes run with a **managed identity**, which is assigned the **AcrPull** role on ACR.
-- This ensures secure, least-privilege access for Kubernetes pods to fetch container images.
-- Role assignments are automated but sometimes require manual intervention via the Azure Portal to grant necessary permissions.
-
-### Benefits of this DevOps Setup
-
-- **Scalability:** AKS allows easy scaling of pods and nodes for load handling.  
-- **Reliability:** Kubernetes self-healing ensures minimal downtime.  
-- **Repeatability:** Terraform automates and version-controls infrastructure provisioning.  
-- **Speed:** CI/CD pipelines enable fast feedback and rapid deployments.  
-- **Security:** Managed identities and least-privilege role assignments limit attack surface.  
-
----
+- **Terraform Cloud:** Our source of truth for infrastructure state, enabling collaboration and remote state management.
+- **Azure Kubernetes Service (AKS):** Managed Kubernetes cluster hosting all app services, providing scaling and orchestration.
+- **Azure Container Registry (ACR):** Private Docker image repository tightly integrated with AKS for secure image pulls.
+- **Azure Virtual Network (VNet):** Segments cloud network into subnets for security and resource isolation.
+- **Role Assignments:** AKS cluster identity granted **AcrPull** role to access ACR securely without credentials.
+- **Kubernetes manifests:** Declarative YAML files managing deployments, services, and StatefulSets for the PostgreSQL database.
 
 ## Project Structure
 
 ```plaintext
 /backend           # Flask API and business logic
 /frontend          # React app source code
-/kubernetes             # Kubernetes manifests (deployments, services, statefulsets)
-/Terraform         # Terraform infrastructure as code files
+/k8s               # Kubernetes manifests (deployments, services, statefulsets)
+/terraform         # Terraform infrastructure as code files
 /.github/workflows # GitHub Actions CI/CD pipelines
+
+Thanks for checking out the Voting DApp! 🚀
+
+---
+
 
 
