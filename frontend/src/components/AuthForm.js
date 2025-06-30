@@ -1,6 +1,7 @@
 import React from 'react';
 import { Vote, LogIn, UserPlus } from 'lucide-react';
 
+
 export const AuthForm = ({ type, auth, formData, setAuth, handleInputChange, handleSubmit }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4">
