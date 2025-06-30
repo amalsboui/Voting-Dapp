@@ -1,5 +1,4 @@
-Voting DApp
-
+# Voting DApp
 [![Frontend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/frontend.yml/badge.svg)](https://github.com/amalsboui/Voting-Dapp/actions/workflows/frontend.yml)
 [![Backend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/backend.yml/badge.svg)](https://github.com/amalsboui/Voting-Dapp/actions/workflows/backend.yml)
 [![CD to AKS](https://github.com/amalsboui/voting-dapp/actions/workflows/cd.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/cd.yml)  
