@@ -1,8 +1,8 @@
-# ![Voting DApp](https://raw.githubusercontent.com/amalsboui/voting-dapp/main/docs/logo.png) Voting DApp
+Voting DApp
 
-[![Frontend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/frontend.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/frontend.yml)  
-[![Backend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/backend.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/backend.yml)  
-[![CD to AKS](https://github.com/amalsboui/voting-dapp/actions/workflows/cd-aks.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/cd-aks.yml)  
+[![Frontend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/frontend.yml/badge.svg)](https://github.com/amalsboui/Voting-Dapp/actions/workflows/frontend.yml)
+[![Backend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/backend.yml/badge.svg)](https://github.com/amalsboui/Voting-Dapp/actions/workflows/backend.yml)
+[![CD to AKS](https://github.com/amalsboui/voting-dapp/actions/workflows/cd.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/cd.yml)  
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
