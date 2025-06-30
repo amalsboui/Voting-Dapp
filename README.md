@@ -63,7 +63,6 @@ The project follows modern DevOps best practices to automate building, testing, 
 - **Infrastructure as Code:**  
   - Utilizes **Terraform Cloud** to define and manage Azure infrastructure, including AKS cluster, ACR, virtual network, and role assignments.  
   - Ensures repeatable, auditable infrastructure provisioning and management.
-- **Role-based access control:** Uses Azure managed identities and RBAC to secure communication between AKS and ACR.
 
 ---
 
