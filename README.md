@@ -1,137 +1,112 @@
-# Voting DApp
+# ![Voting DApp](https://raw.githubusercontent.com/yourusername/voting-dapp/main/docs/logo.png) Voting DApp
 
-This project is a decentralized voting application built with a blockchain backend and a React frontend.
+[![Frontend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/frontend.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/frontend.yml)  
+[![Backend CI](https://github.com/amalsboui/voting-dapp/actions/workflows/backend.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/backend.yml)  
+[![CD to AKS](https://github.com/amalsboui/voting-dapp/actions/workflows/cd-aks.yml/badge.svg)](https://github.com/amalsboui/voting-dapp/actions/workflows/cd-aks.yml)  
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## Prerequisites
+A decentralized voting application built with modern blockchain technologies, featuring a React frontend, Flask backend, and PostgreSQL database, all containerized and deployed with DevOps best practices on Azure Kubernetes Service (AKS).
 
-Before you begin, ensure you have the following installed:
+---
 
-- [Node.js](https://nodejs.org/) (v16 or higher)
-- [Docker](https://www.docker.com/) (optional, for containerized deployment)
-- [Python](https://www.python.org/) (v3.10 or higher)
+## Project Overview
+
+This project implements a secure and scalable voting system using blockchain technology and cloud-native infrastructure.
+
+### Technologies Used
+
+- **Frontend:** React.js  
+- **Backend:** Flask (Python)  
+- **Database:** PostgreSQL (for user authentication)  
+- **Smart Contract:** Solidity, developed and tested with [Hardhat](https://hardhat.org/) environment  
+- **Blockchain Network:** Ethereum Sepolia testnet  
+- **Blockchain Deployment:** Hardhat Ignition  
+- **Wallet Integration:** MetaMask browser extension  
+- **Blockchain Interaction:** [ethers.js](https://docs.ethers.io/v5/) connecting frontend to smart contract  
+- **Decentralized Storage:** IPFS for storing candidate images (via [Pinata](https://pinata.cloud/))  
+- **Blockchain Node Provider:** [Alchemy](https://www.alchemy.com/)  
+
+---
+
+## Features
+
+- **User Authentication:** Secure login using PostgreSQL database  
+- **Voting:** Blockchain-based voting with smart contracts on Ethereum testnet  
+- **Wallet Support:** Users connect their MetaMask wallet for identity and signing  
+- **IPFS Storage:** Candidate images are stored off-chain on IPFS using Pinata for reliable pinning and infrastructure-free hosting  
+- **Unit Testing:**  
+  - Frontend: Component tests for candidates page using mocked data  
+  - Backend: API and business logic tests to ensure correctness  
+
+---
+
+## DevOps and Deployment
+
+This project leverages modern DevOps practices to enable scalable, reliable, and maintainable deployment.
+
+### Containerization
+
+- Each application component (React frontend, Flask backend, PostgreSQL DB) is containerized using **Docker**.
+- Separate Dockerfiles are maintained for each component ensuring clean builds and environment consistency.
+
+### Continuous Integration (CI)
+
+- Implemented using **GitHub Actions** workflows:
+  - **Backend CI**:  
+    - Sets up Python environment  
+    - Installs dependencies  
+    - Runs the Flask app with a temporary test database  
+    - Executes backend unit tests  
+  - **Frontend CI**:  
+    - Sets up Node.js environment  
+    - Installs dependencies  
+    - Builds the React app  
+    - Runs unit tests focused on the candidates page component  
+- Each CI pipeline runs automatically on pushes and pull requests, ensuring code quality and functionality before merging.
+
+### Continuous Deployment (CD)
+
+- CD pipeline triggers after both frontend and backend CI pipelines complete successfully.
+- Steps include:  
+  - Docker image builds for frontend, backend, and PostgreSQL (if applicable).  
+  - Docker images are pushed to **Azure Container Registry (ACR)**, a private Docker registry in Azure.  
+  - Kubernetes manifests (deployments, services, statefulsets) are applied to the **Azure Kubernetes Service (AKS)** cluster, updating the running app.
+- This automated pipeline allows zero-touch deployments, reducing manual errors and speeding up releases.
+
+### Infrastructure Provisioning
+
+- The entire cloud infrastructure is provisioned and managed with **Terraform**, enabling Infrastructure as Code (IaC).
+- Terraform uses a **remote backend** hosted in Terraform Cloud (`ppp_cc/voting-dapp`) to securely store state and collaborate.
+- Resources provisioned include:
+  - Azure Resource Group  
+  - Virtual Network and Subnet  
+  - AKS cluster (2 nodes, system-assigned managed identity)  
+  - Azure Container Registry (ACR)  
+  - Role Assignments to allow AKS to pull images from ACR  
+
+### Azure Role Assignments and Security
+
+- AKS nodes run with a **managed identity**, which is assigned the **AcrPull** role on ACR.
+- This ensures secure, least-privilege access for Kubernetes pods to fetch container images.
+- Role assignments are automated but sometimes require manual intervention via the Azure Portal to grant necessary permissions.
+
+### Benefits of this DevOps Setup
+
+- **Scalability:** AKS allows easy scaling of pods and nodes for load handling.  
+- **Reliability:** Kubernetes self-healing ensures minimal downtime.  
+- **Repeatability:** Terraform automates and version-controls infrastructure provisioning.  
+- **Speed:** CI/CD pipelines enable fast feedback and rapid deployments.  
+- **Security:** Managed identities and least-privilege role assignments limit attack surface.  
+
+---
 
 ## Project Structure
 
-- **backend/**: Contains the Flask backend a
-- **frontend/**: Contains the React frontend.
-- **contracts/**: Contains the Solidity smart contract.
+```plaintext
+/backend           # Flask API and business logic
+/frontend          # React app source code
+/kubernetes             # Kubernetes manifests (deployments, services, statefulsets)
+/Terraform         # Terraform infrastructure as code files
+/.github/workflows # GitHub Actions CI/CD pipelines
 
-## Setup Instructions
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/your-repo/voting-dapp.git
-cd voting-dapp
-```
-
-### 2. Install Backend Dependencies
-
-Navigate to the `backend` directory and install Python dependencies:
-
-```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### 3. Install Frontend Dependencies
-
-Navigate to the `frontend` directory and install Node.js dependencies:
-
-```bash
-cd ../frontend
-npm install
-```
-
-### 4. Compile Smart Contracts
-
-Navigate to the `contracts` directory and compile the Solidity smart contract:
-
-```bash
-cd ../contracts
-npx hardhat compile
-```
-
-### 5. Run the Backend
-
-Start the Flask backend:
-
-```bash
-cd ../backend
-.venv\Scripts\activate
-python run.py
-```
-
-The backend will be available at `http://127.0.0.1:5000`.
-
-### 6. Run the Frontend
-
-Start the React frontend:
-
-```bash
-cd ../frontend
-npm start
-```
-
-The frontend will be available at `http://localhost:3000`.
-
-## Docker Deployment
-
-To deploy the application using Docker:
-NB:you should start docker desktop if you are using windows
-
-1. Build the Docker images:
-
-   ```bash
-   docker-compose build
-   ```
-
-2. Start the containers:
-
-   ```bash
-   docker-compose up
-   ```
-
-The application will be available at `http://localhost:3000`.
-
-## Testing
-
-### Backend Tests
-
-Run the backend tests:
-
-```bash
-cd backend
-pytest
-```
-
-### Frontend Tests
-
-Run the frontend tests:
-
-```bash
-cd frontend
-npm test
-```
-
-## GitHub Actions
-
-This project uses GitHub Actions for continuous integration and deployment. The workflows are located in the `.github/workflows/` directory and include:
-
-- **Backend Tests**: Runs `pytest` to ensure the Flask backend is functioning correctly.
-- **Frontend Tests**: Runs `npm test` to validate the React frontend.
-- **Smart Contract Compilation**: Uses Hardhat to compile Solidity contracts.
-
-### How to Trigger Workflows
-
-Workflows are triggered automatically on:
-
-- **Push Events**: When code is pushed to the repository.
-- **Pull Requests**: When a pull request is opened or updated.
-
-### Viewing Workflow Status
-
-You can view the status of workflows in the "Actions" tab of the GitHub repository.
 
