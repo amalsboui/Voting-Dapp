@@ -1,0 +1,5 @@
+resource_group_name = "votingapp-rg"
+location            = "France Central"
+vnet_name           = "votingapp-vnet"
+subnet_name         = "votingapp-subnet"
+acr_name            = "votingappacr1234"

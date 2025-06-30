@@ -6,3 +6,5 @@ backend/__pycache__
 backend/app/__pycache__
 backend/generate_token.py
 .vscode
+Terraform/.terraform/
+
