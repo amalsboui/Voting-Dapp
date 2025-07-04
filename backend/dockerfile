@@ -17,7 +17,6 @@ ENV FLASK_ENV=development
 #TODO change it to a file(still not working)
 #RUN ls -l /app
 
-
 # Move migration commands to entrypoint script
 #RUN chmod +x entrypoint.sh
 
