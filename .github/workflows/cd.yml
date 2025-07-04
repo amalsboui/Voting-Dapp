@@ -2,17 +2,19 @@ name: CD to AKS
 
 on:
   workflow_run:
-    workflows: [ "Frontend CI", "Backend CI" ]
+    workflows: ["Frontend CI", "Backend CI"]
     types:
       - completed
 
-concurrency:               # <- prevents duplicate CD runs
+concurrency:
   group: cd-production
   cancel-in-progress: true
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Run only when the triggering workflow succeeded
+    # and only when Backend CI finishes (to avoid double runs)
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.name == 'Backend CI' }}
     runs-on: ubuntu-latest
 
     permissions:
@@ -21,18 +23,13 @@ jobs:
 
     env:
       ACR_LOGIN_SERVER: votingappacr1234.azurecr.io
-      RESOURCE_GROUP:   votingapp-rg
-      AKS_CLUSTER:      voting-dapp-aks
+      RESOURCE_GROUP: votingapp-rg
+      AKS_CLUSTER: voting-dapp-aks
 
     steps:
-      # -----------------------
-      # 0.  Checkout code
-      # -----------------------
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # -----------------------
-      # 1.  Detect which paths changed
-      # -----------------------
       - name: Get changed files
         id: changes
         uses: dorny/paths-filter@v3
@@ -43,52 +40,37 @@ jobs:
             backend:
               - 'backend/**'
 
-      # -----------------------
-      # 2.  Azure login (OIDC)
-      # -----------------------
       - name: Azure Login (OIDC)
         uses: azure/login@v1
         with:
-          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # -----------------------
-      # 3.  Docker Buildx + ACR login
-      # -----------------------
       - uses: docker/setup-buildx-action@v2
 
       - name: ACR Login
         run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
 
-      # -----------------------
-      # 4.  Build & push backend image (only if backend files changed)
-      # -----------------------
-      - name: Build & Push Backend
+      - name: Build & Push Backend Image
         if: steps.changes.outputs.backend == 'true'
         run: |
           docker build -t $ACR_LOGIN_SERVER/backend:latest ./backend
           docker push $ACR_LOGIN_SERVER/backend:latest
 
-      # -----------------------
-      # 5.  Build & push frontend image (only if frontend files changed)
-      # -----------------------
-      - name: Build & Push Frontend
+      - name: Build & Push Frontend Image
         if: steps.changes.outputs.frontend == 'true'
         run: |
           docker build -t $ACR_LOGIN_SERVER/frontend:latest ./frontend
           docker push $ACR_LOGIN_SERVER/frontend:latest
 
-      # -----------------------
-      # 6.  Update AKS
-      # -----------------------
       - name: Get AKS credentials
         run: az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
 
       - name: Apply Kubernetes manifests
         run: kubectl apply -f kubernetes/
 
-      - name: Verify rollout
+      - name: Verify Deployment Rollout
         run: |
           kubectl rollout status deployment/flask-backend
           kubectl rollout status deployment/react-frontend

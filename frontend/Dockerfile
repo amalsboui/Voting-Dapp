@@ -7,7 +7,6 @@ RUN npm install
 
 COPY . .
 
-
 # Add environment variable before build
 ENV REACT_APP_BACKEND_URL=http://localhost:5000
 

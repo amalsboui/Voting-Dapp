@@ -9,10 +9,6 @@ on:
   pull_request:
     paths:
       - 'backend/**'
-  workflow_run:
-    workflows: ["Frontend CI"]
-    types:
-      - completed
 
 jobs:
   setup-env:
